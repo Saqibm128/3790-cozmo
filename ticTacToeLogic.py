@@ -1,5 +1,7 @@
 from enum import Enum
 from addict import Dict
+import copy
+from random import randint
 
 
 class Tile(Enum):
@@ -163,3 +165,51 @@ class Board(Winnable):
             return Tile.EMPTY
         else:
             return self.boards[x][y]
+
+class CPUGame():
+    def __init__(self, board=None):
+        if board is None:
+            self.board = Board()
+        else:
+            self.board = board
+    def nextMove(self):
+        valid = list()
+        for x in range(3):
+            toAppend = ""
+            for y in range(3):
+                toAppend += "|" + self.board.boards[x][y].value + "|"
+            print(toAppend+"\n")
+            print("____________"+"\n")
+
+        for x in range(3):
+            for y in range(3):
+                if self.board.boards[x][y] == Tile.EMPTY:
+                    tempBoard = copy.deepcopy(self.board)
+                    # try to win!
+                    tempBoard.play(x, y)
+                    if self.board.winner() != Tile.EMPTY or self.board.winner() == Tile.NO_WIN:
+                        return (x, y)
+                    tempBoard = copy.deepcopy(self.board)
+                    #avoid letting other player win by beating him to the spot
+                    tempBoard.changeCurrentPlayer() #think as other player
+                    tempBoard.play(x, y)
+                    if self.board.winner() != Tile.EMPTY or self.board.winner() == Tile.NO_WIN:
+                        return (x, y)
+                    valid.append((x,y))
+        return valid[randint(0, len(valid - 1))]
+
+
+
+if __name__ == "__main__":
+    print("")
+    board = Board()
+    game = CPUGame(board=board)
+    while not board.isDone:
+        x = int(input("x"))
+        y = int(input("y"))
+        board.play(x, y)
+        print("{}".format(board.currentPlayer))
+        x, y = game.nextMove()
+        if not board.isDone:
+            board.play(x, y)
+        print(board.boards)
