@@ -9,9 +9,12 @@ cozmo_rotation = 0 #o to 360, should be facing center of board, on start place
 cube = None #cube to use for ticTacToe
 board = Board()
 cpuOppo = CPUOpponent(board=board)
+cozmoTile = Tile.X
 
 
 acceleration = cozmo.util.Vector3(0,0,0)
+
+tile_width = 80
 
 def moveCozmo(robot, x, y, rotation=0):
     '''
@@ -29,7 +32,7 @@ def moveCozmo(robot, x, y, rotation=0):
     # robot.move_lift(-5)
 
     #move y
-    robot.go_to_pose(Pose(root_pose.position.x + 60 * x,root_pose.position.y + 60 * y, 0, angle_z=degrees(0))).wait_for_completed()
+    robot.go_to_pose(Pose(root_pose.position.x + tile_width * x,root_pose.position.y + tile_width * y, 0, angle_z=degrees(rotation))).wait_for_completed()
 
 def moveCube(robot, x, y):
     global cube
@@ -38,21 +41,26 @@ def moveCube(robot, x, y):
     robot.place_object_on_ground_here(cube, num_retries=10).wait_for_completed()
 
 def cozmoTicTacToeMove(robot):
+    print("cozmo pls move")
+    global board
     if not board.isDone:
+        cube.set_lights(cozmo.lights.red_light.flash())
         x, y = cpuOppo.nextMove()
         status = board.currentPlayer.value
         status = status + " is turn"
         robot.say_text(status).wait_for_completed()
+        cube.set_lights(cozmo.lights.red_light)
         robot.say_text("Playing on {} {}".format(x, y)).wait_for_completed()
         board.play(x, y)
         moveCube(robot, x, y)
+        moveCozmo(robot, -1, -1, rotation=45)
+        status = board.currentPlayer.value
+        status = status + " is turn"
+        robot.say_text(status).wait_for_completed()
+        cube.set_lights(cozmo.lights.green_light)
     else:
-        robot.say_text("I am finished").wait_for_completed()
-        if board.winner() == Tile.NO_WIN:
-            robot.say_text("catscratch").wait_for_completed()
-        else:
-            winner = board.winner().value
-            robot.say_text(winner + " has won").wait_for_completed()
+        print("cozmo done!")
+    print(board)
 
 
 
@@ -82,6 +90,12 @@ def handle_object_moving(evt, **kw):
           (evt.obj.object_id, evt.acceleration, evt.move_duration, calculateSpeed(evt.acceleration, evt.move_duration)))
     # robot.say_text(note, voice_pitch=, duration_scalar=0.3).wait_for_completed()
 
+def handle_object_tapped(evt, **kw):
+    global cube
+    global board
+    if (evt.obj.object_id == cube.object_id) and board.currentPlayer != cozmoTile:
+        print(evt)
+
 def handle_object_moving_stopped(evt, **kw):
     # This will be called whenever an EvtObjectMovingStopped event is dispatched -
     # whenever we detect a cube stopped moving (via an accelerometer in the cube)
@@ -97,10 +111,15 @@ def cozmo_program(robot: cozmo.robot.Robot):
     global cube
     global board
 
-    print(robot.battery_voltage)
+    print("Bot Voltage:", robot.battery_voltage)
+    if robot.battery_voltage < 3.7:
+        print("Low bot voltage!")
 
 
     robot.say_text("Tic Tac Toe").wait_for_completed()
+    robot.set_head_angle(degrees(0), num_retries=10).wait_for_completed()
+    # print(robot.MIN_HEAD_ANGLE, robot.MAX_HEAD_ANGLE)
+    # raise BaseException("")
 
     # robot.say_text("Let's Play TicTacToe").wait_for_completed()
 
@@ -110,22 +129,67 @@ def cozmo_program(robot: cozmo.robot.Robot):
 
 
     cube = robot.world.wait_for_observed_light_cube()
+    cube.set_lights(cozmo.lights.red_light)
     # robot.say_text("Found Cube").wait_for_completed()
 
-    root_pose = cube.pose
+    root_pose = robot.pose
     # moveCozmo(robot, 0, 0)
     print("Cube found:", cube.pose, cube.object_id)
     print(root_pose)
 
-    while not board.isDone:
-        cozmoTicTacToeMove(robot)
-    # robot.add_event_handler(cozmo.objects.EvtObjectMovingStarted, handle_object_moving_started)
-    # robot.add_event_handler(cozmo.objects.EvtObjectMoving, handle_object_moving)
-    # robot.add_event_handler(cozmo.objects.EvtObjectMovingStopped, handle_object_moving_stopped)
-    # robot.enable_stop_on_cliff(True)
+
+
+    robot.add_event_handler(cozmo.objects.EvtObjectMovingStarted, handle_object_moving_started)
+    robot.add_event_handler(cozmo.objects.EvtObjectMoving, handle_object_moving)
+    robot.add_event_handler(cozmo.objects.EvtObjectMovingStopped, handle_object_moving_stopped)
+    robot.add_event_handler(cozmo.objects.EvtObjectTapped, handle_object_tapped)
+    robot.enable_stop_on_cliff(True)
     #
-    # while True:
-    #     time.sleep(1.0)
+    while not board.isDone:
+        if board.currentPlayer == cozmoTile:
+            cozmoTicTacToeMove(robot)
+        if board.isDone:
+            break;
+        cube.wait_for_tap()
+        cube.set_lights(cozmo.lights.green_light.flash())
+        x, y = cube.pose.position.x, cube.pose.position.y
+        x, y = round((x - root_pose.position.x) / tile_width), round((y - root_pose.position.y - 80) / tile_width) # y has a fudge factor to help
+
+        #fudge factors
+        if x >= -2 and x < 0:
+            x = 0
+        if y >= -2 and y < 0:
+            y = 0
+
+        if x >= 2 and x < 4:
+            x = 2
+        if y >= 2 and y < 4:
+            y = 2
+
+        if (x >= 0) and (x < 3) and (y >= 0) and (y < 3):
+            print(x, y)
+            if board.play(x, y) == Tile.EMPTY: #Valid move
+                status = board.currentPlayer.value
+                robot.say_text(status + " move to {} {}".format(x, y)).wait_for_completed()
+            print(board)
+
+        cube.set_lights(cozmo.lights.green_light)
+
+    #done
+    robot.say_text("Game finished").wait_for_completed()
+    if board.winner() == Tile.NO_WIN:
+        robot.say_text("catscratch").wait_for_completed()
+    else:
+        if board.winner() != cozmoTile:
+            cube.set_lights(cozmo.lights.green_light.flash())
+        else:
+            cube.set_lights(cozmo.lights.red_light.flash())
+            robot.say_text("GIT GUD SCRUB")
+        winner = board.winner().value
+        robot.say_text(winner + " has won").wait_for_completed()
+
+
+        # time.sleep(1.0)
     #     print(cube.pose)
 
 cozmo.run_program(cozmo_program)
