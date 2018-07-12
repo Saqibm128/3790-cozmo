@@ -59,7 +59,6 @@ class Winnable:
             # did we win diagonally right to left
             maybeWinner = self.boards[self.length - 1][0].winner()
             for i in range(self.length):
-                maybeWinner = self.boards[self.length - 1][0]
                 if self.boards[self.length - i - 1][i].winner() != maybeWinner or self.boards[self.length - i - 1][i].winner() == Tile.EMPTY:
                     maybeWinner = Tile.EMPTY
             if maybeWinner != Tile.EMPTY and maybeWinner != Tile.NO_WIN:
@@ -154,6 +153,14 @@ class Board(Winnable):
             self.boards.append([])
             for j in range(length):
                 self.boards[i].append(Tile.EMPTY)
+    def __str__(self):
+        toAppend = ""
+
+        for x in range(self.length):
+            for y in range(self.length):
+                toAppend = "|" + self.boards[x][y].value + "|" + toAppend
+            toAppend = "\n__________\n"+toAppend
+        return toAppend
 
     def play(self, x, y):
         if (self.isDone):
@@ -166,7 +173,7 @@ class Board(Winnable):
         else:
             return self.boards[x][y]
 
-class CPUGame():
+class CPUOpponent():
     def __init__(self, board=None):
         if board is None:
             self.board = Board()
@@ -174,42 +181,47 @@ class CPUGame():
             self.board = board
     def nextMove(self):
         valid = list()
-        for x in range(3):
-            toAppend = ""
-            for y in range(3):
-                toAppend += "|" + self.board.boards[x][y].value + "|"
-            print(toAppend+"\n")
-            print("____________"+"\n")
+
+
+        if self.board.boards[1][1] == Tile.EMPTY:
+            return (1,1)
 
         for x in range(3):
             for y in range(3):
                 if self.board.boards[x][y] == Tile.EMPTY:
+                    # print(x, y)
                     tempBoard = copy.deepcopy(self.board)
                     # try to win!
                     tempBoard.play(x, y)
-                    if self.board.winner() != Tile.EMPTY or self.board.winner() == Tile.NO_WIN:
+                    if tempBoard.isDone:
                         return (x, y)
                     tempBoard = copy.deepcopy(self.board)
                     #avoid letting other player win by beating him to the spot
                     tempBoard.changeCurrentPlayer() #think as other player
                     tempBoard.play(x, y)
-                    if self.board.winner() != Tile.EMPTY or self.board.winner() == Tile.NO_WIN:
+                    if tempBoard.isDone:
                         return (x, y)
                     valid.append((x,y))
-        return valid[randint(0, len(valid - 1))]
+        return valid[randint(0, len(valid) - 1)]
 
 
 
 if __name__ == "__main__":
     print("")
     board = Board()
-    game = CPUGame(board=board)
+    game = CPUOpponent(board=board)
     while not board.isDone:
         x = int(input("x"))
         y = int(input("y"))
-        board.play(x, y)
-        print("{}".format(board.currentPlayer))
-        x, y = game.nextMove()
+        if board.play(x, y) != Tile.EMPTY:
+            continue
         if not board.isDone:
+            x, y = game.nextMove()
+            print(x, y)
             board.play(x, y)
-        print(board.boards)
+        else:
+            print("DONE")
+            print(board.winner())
+        print(board)
+    print("DONE")
+    print(board.winner())
