@@ -89,59 +89,6 @@ class Winnable:
             return jsonDict
 
 
-class UltimateBoard(Winnable):
-    def __init__(self, length=3):
-        super().__init__(length)
-        self.length = length
-        self.boards = []
-        self.currentBoard = (-1, -1)  # If -1, -1 then any board is possible (player needs to choose)
-        self.isDone = False
-
-        for i in range(length):
-            self.boards.append([])
-            for j in range(length):
-                self.boards[i].append(Board(length))
-
-    """
-    If first move or we end up going to board which goes to complete board, return true
-    """
-    def needToPickNextBoard(self):
-        return self.currentBoard == (-1,-1)
-
-    def play(self, x, y):
-        if (self.currentBoard == (-1, -1)):
-            raise Exception("Pick 3 by 3 sub-board first!")
-        if (self.isDone):
-            raise Exception("Game is already finished")
-        x_sup, y_sup = self.currentBoard[0], self.currentBoard[1]
-        result = self.boards[x_sup][y_sup].play(x, y)
-        if result != Tile.EMPTY:
-            raise Exception("Board tile is already occupied")
-        else:
-            self.changeCurrentPlayer()
-            self.changeBoardsCurrentPlayer(self.currentPlayer)
-            if (self.boards[x][y].isDone):
-                self.currentBoard = (-1, -1)
-            else:
-                self.currentBoard = (x, y)
-        self.winner() #updates isdone
-
-    def changeBoardsCurrentPlayer(tile):
-        for x in range(length):
-            for y in range(length):
-                self.boards[x][y].currentPlayer = tile;
-
-
-    """
-    Will only work if we can choose a board, otherwise we get back an error
-    newBoard should be a tuple
-    """
-    def chooseBoard(self, newBoard):
-        if not self.needToPickNextBoard():
-            raise Exception("Should not pick a new board!")
-        else:
-            self.currentBoard = newBoard
-
 class Board(Winnable):
     def __init__(self, length=3):
         super().__init__(length)
