@@ -135,20 +135,19 @@ class CPUOpponent():
 
         for x in range(3):
             for y in range(3):
-                if self.board.boards[x][y] == Tile.EMPTY:
-                    # print(x, y)
-                    tempBoard = copy.deepcopy(self.board)
-                    # try to win!
-                    tempBoard.play(x, y)
-                    if tempBoard.isDone:
-                        return (x, y)
-                    tempBoard = copy.deepcopy(self.board)
-                    #avoid letting other player win by beating him to the spot
-                    tempBoard.changeCurrentPlayer() #think as other player
-                    tempBoard.play(x, y)
-                    if tempBoard.isDone:
-                        return (x, y)
-                    valid.append((x,y))
+                # if self.board.boards[x][y] == Tile.EMPTY:
+                tempBoard = copy.deepcopy(self.board)
+                # try to win!
+                tempBoard.play(x, y)
+                if tempBoard.isDone:
+                    return (x, y)
+                tempBoard = copy.deepcopy(self.board)
+                #avoid letting other player win by beating him to the spot
+                tempBoard.changeCurrentPlayer() #think as other player
+                tempBoard.play(x, y)
+                if tempBoard.isDone:
+                    return (x, y)
+                valid.append((x,y))
         return valid[randint(0, len(valid) - 1)]
 
 
