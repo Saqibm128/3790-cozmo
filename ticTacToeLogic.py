@@ -49,7 +49,6 @@ class Winnable:
             # did we win diagonally left to right
             maybeWinner = self.boards[0][0].winner()
             for i in range(self.length):
-                maybeWinner = self.boards[0][0]
                 if self.boards[i][i].winner() != maybeWinner or self.boards[i][i].winner() == Tile.EMPTY:
                     maybeWinner = Tile.EMPTY
             if maybeWinner != Tile.EMPTY and maybeWinner != Tile.NO_WIN:
@@ -135,19 +134,19 @@ class CPUOpponent():
 
         for x in range(3):
             for y in range(3):
-                # if self.board.boards[x][y] == Tile.EMPTY:
-                tempBoard = copy.deepcopy(self.board)
-                # try to win!
-                tempBoard.play(x, y)
-                if tempBoard.isDone:
-                    return (x, y)
-                tempBoard = copy.deepcopy(self.board)
-                #avoid letting other player win by beating him to the spot
-                tempBoard.changeCurrentPlayer() #think as other player
-                tempBoard.play(x, y)
-                if tempBoard.isDone:
-                    return (x, y)
-                valid.append((x,y))
+                if self.board.boards[x][y] == Tile.EMPTY:
+                    tempBoard = copy.deepcopy(self.board)
+                    # try to win!
+                    tempBoard.play(x, y)
+                    if tempBoard.isDone:
+                        return (x, y)
+                    tempBoard = copy.deepcopy(self.board)
+                    #avoid letting other player win by beating him to the spot
+                    tempBoard.changeCurrentPlayer() #think as other player
+                    tempBoard.play(x, y)
+                    if tempBoard.isDone:
+                        return (x, y)
+                    valid.append((x,y))
         return valid[randint(0, len(valid) - 1)]
 
 

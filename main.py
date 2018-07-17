@@ -30,8 +30,6 @@ def moveCozmo(robot, x, y, rotation=0, look_for_cube=False):
     # robot.turn_in_place(degrees(0 - cozmo_rotation)).wait_for_completed() not implemented
     print("Moving Cozmo to: ({}, {})".format(x,y))
     # robot.move_lift(-5)
-    robot.set_lift_height(.6).wait_for_completed() #after dropping lift, so it doesn't drag on the ground and affect position over time
-
     #move cozmo
     robot.set_head_angle(degrees(0), num_retries=10).wait_for_completed()
 
@@ -48,7 +46,6 @@ def moveCube(robot, x, y):
     robot.pickup_object(cube, num_retries=10).wait_for_completed()
     moveCozmo(robot, x, y)
     robot.place_object_on_ground_here(cube, num_retries=10).wait_for_completed()
-    robot.set_lift_height(.6).wait_for_completed() #after dropping lift, so it doesn't drag on the ground and affect position over time
 
 def cozmoTicTacToeMove(robot):
     # print("cozmo pls move")
@@ -63,11 +60,12 @@ def cozmoTicTacToeMove(robot):
         robot.say_text("Playing on {} {}".format(x, y)).wait_for_completed()
         board.play(x, y)
         moveCube(robot, x, y)
-        moveCozmo(robot, -1.5, 1,)
+        moveCozmo(robot, -.5, 1)
         status = board.currentPlayer.value
         status = status + " is turn"
-        robot.say_text(status).wait_for_completed()
-        cube.set_lights(cozmo.lights.green_light)
+        if not board.isDone:
+            robot.say_text(status).wait_for_completed()
+            cube.set_lights(cozmo.lights.green_light)
     else:
         print("cozmo done!")
     print(board)
@@ -78,8 +76,8 @@ def lookForCube(robot, action):
     global cube
     while not cube.is_visible and not action.is_completed:
         time.sleep(.05)
-        print(cube.is_visible)
-        print(action.is_completed)
+        # print(cube.is_visible)
+        # print(action.is_completed)
     if cube.is_visible and not action.is_completed:
         action.abort()
 
@@ -140,6 +138,8 @@ def cozmo_program(robot: cozmo.robot.Robot):
 
     robot.say_text("Tic Tac Toe").wait_for_completed()
     robot.set_head_angle(degrees(0), num_retries=10).wait_for_completed()
+    robot.set_lift_height(0).wait_for_completed()
+
     # print(robot.MIN_HEAD_ANGLE, robot.MAX_HEAD_ANGLE)
     # raise BaseException("")
 
@@ -153,7 +153,7 @@ def cozmo_program(robot: cozmo.robot.Robot):
     cube = robot.world.wait_for_observed_light_cube()
     lookaround.stop()
 
-    # cube.visibility_timeout = 1
+    cube.visibility_timeout = 1
     # cube.set_lights(cozmo.lights.red_light)
     # # robot.say_text("Found Cube").wait_for_completed()
     #
@@ -172,13 +172,18 @@ def cozmo_program(robot: cozmo.robot.Robot):
     # ## DEBUG: commented code for yolo cozmo
     # while not board.isDone:
     #         cozmoTicTacToeMove(robot)
+    #
+    # for x in range(0, 3):
+    #     for y in range(0, 3):
+    #         moveCube(robot, x, y)
+            # cube.wait_for_tap()
 
     while not board.isDone:
         if board.currentPlayer == cozmoTile:
             cozmoTicTacToeMove(robot)
         else:
             #reset if we need to loop back after in correct move
-            moveCozmo(robot, -1.5, 1) #get back to good vantage point in case we moved away
+            moveCozmo(robot, -.5, 1) #get back to good vantage point in case we moved away
             cube.set_lights(cozmo.lights.green_light)
 
 
@@ -187,17 +192,26 @@ def cozmo_program(robot: cozmo.robot.Robot):
         cube.wait_for_tap()
         cube.set_lights(cozmo.lights.green_light.flash())
         if not cube.is_visible:
+            x, y = cube.pose.position.x, cube.pose.position.y
+            x, y = round((x - root_pose.position.x) / tile_width), round((y - root_pose.position.y) / tile_width) # x has a fudge factor to help
+
+
             # action = robot.go_to_object(cube, distance_mm(100.0)) #after the tap, go closer to object so that pose info is correct
             # lookForCube(robot, action)
-            if not cube.is_visible:
+            if not (x < 1 and y < 1):
                 moveCozmo(robot, 1, 1, 0, look_for_cube=True)
                 lookaround = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
-                robot.world.wait_until_observe_num_objects(num=1, object_type=cozmo.objects.LightCube, timeout=60)
+                robot.world.wait_until_observe_num_objects(num=1, object_type=cozmo.objects.LightCube, timeout=10)
                 lookaround.stop()
+                if not cube.is_visible:
+                    moveCozmo(robot, 2, 1, 0, look_for_cube=True)
+                    lookaround = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
+                    robot.world.wait_until_observe_num_objects(num=1, object_type=cozmo.objects.LightCube, timeout=30)
+                    lookaround.stop()
         # robot.go_to_object(cube, distance_mm(100.0)).wait_for_completed() #after the tap, go closer to object so that pose info is correct
 
 
-        x, y = cube.pose.position.x, cube.pose.position.y
+        x, y = cube.pose.position.x - .5, cube.pose.position.y
         print((x - root_pose.position.x) / tile_width, (y - root_pose.position.y) / tile_width)
         x, y = round((x - root_pose.position.x) / tile_width - .5), round((y - root_pose.position.y) / tile_width) # x has a fudge factor to help
         # fudge factors
@@ -226,7 +240,7 @@ def cozmo_program(robot: cozmo.robot.Robot):
     #done
     robot.say_text("Game finished").wait_for_completed()
     if board.winner() == Tile.NO_WIN:
-        robot.say_text("catscratch").wait_for_completed()
+        robot.say_text("Tied Game").wait_for_completed()
     else:
         if board.winner() != cozmoTile:
             cube.set_lights(cozmo.lights.green_light.flash())
@@ -236,8 +250,8 @@ def cozmo_program(robot: cozmo.robot.Robot):
         winner = board.winner().value
         robot.say_text(winner + " has won").wait_for_completed()
 
-    while True:
-        time.sleep(1.0)
+    # while True:
+    #     time.sleep(1.0)
         # print(cube.pose)
 
 cozmo.run_program(cozmo_program)
